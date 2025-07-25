@@ -3,8 +3,9 @@
 echo ">>>> K8S Controlplane config Start <<<<"
 
 echo "[TASK 1] Initial Kubernetes"
-#kubeadm init --config="/tmp/kubeadm-init.yaml" >/dev/null 2>&1
-kubeadm init --config="/tmp/kubeadm-init.yaml"
+curl --silent -o /root/kubeadm-init-ctr-config.yaml https://raw.githubusercontent.com/gasida/vagrant-lab/refs/heads/main/cilium-study/2w/kubeadm-init-ctr-config.yaml
+kubeadm init --config="/root/kubeadm-init-ctr-config.yaml" --skip-phases=addon/kube-proxy  >/dev/null 2>&1
+
 
 echo "[TASK 2] Setting kube config file"
 mkdir -p /root/.kube
@@ -44,7 +45,29 @@ EOT
 kubectl config rename-context "kubernetes-admin@kubernetes" "HomeLab" >/dev/null 2>&1
 
 
-echo "[TASK 6] Install Kubeps & Setting PS1"
+echo "[TASK 7] Install Cilium CNI"
+NODEIP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+helm repo add cilium https://helm.cilium.io/ >/dev/null 2>&1
+helm repo update >/dev/null 2>&1
+helm install cilium cilium/cilium --version $2 --namespace kube-system \
+--set k8sServiceHost=192.168.10.100 --set k8sServicePort=6443 \
+--set ipam.mode="cluster-pool" --set ipam.operator.clusterPoolIPv4PodCIDRList={"172.20.0.0/16"} --set ipv4NativeRoutingCIDR=172.20.0.0/16 \
+--set routingMode=native --set autoDirectNodeRoutes=true --set endpointRoutes.enabled=true \
+--set kubeProxyReplacement=true --set bpf.masquerade=true --set installNoConntrackIptablesRules=true \
+--set endpointHealthChecking.enabled=false --set healthChecking=false \
+--set hubble.enabled=false --set operator.replicas=1 --set debug.enabled=true >/dev/null 2>&1
+
+
+echo "[TASK 8] Install Cilium CLI"
+CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
+CLI_ARCH=amd64
+if [ "$(uname -m)" = "aarch64" ]; then CLI_ARCH=arm64; fi
+curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz >/dev/null 2>&1
+tar xzvfC cilium-linux-${CLI_ARCH}.tar.gz /usr/local/bin
+rm cilium-linux-${CLI_ARCH}.tar.gz
+
+
+echo "[TASK 9] local DNS with hosts file"
 echo "192.168.10.100 k8s-ctr" >> /etc/hosts
 for (( i=1; i<=$1; i++  )); do echo "192.168.10.10$i k8s-w$i" >> /etc/hosts; done
 

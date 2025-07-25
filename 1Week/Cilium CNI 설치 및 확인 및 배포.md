@@ -88,7 +88,7 @@ Privileges : Cilium 동작을 위해서 관리자 수준 권한 필요
 - Cilium requires access to the host networking namespace. For this purpose, the Cilium pod is scheduled to run in the host networking namespace directly.
 
 ------
-# 도전과제
+# 제
 Cilium 시스템 요구 사항을 점검하는 ‘Bash Script 나 Ansible Playbook’ 를 만들어서 적용해보기
 ```
 #!/bin/bash

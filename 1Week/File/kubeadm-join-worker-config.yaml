@@ -9,6 +9,4 @@ nodeRegistration:
   criSocket: "unix:///run/containerd/containerd.sock"
   kubeletExtraArgs:
     - name: node-ip
-      value: "NODE_IP"
-    #node-ip: "192.168.10.101"   # example for k8s-w1
-    #node-ip: "192.168.10.102"   # example for k8s-w2
+      value: "NODE_IP_PLACEHOLDER"

@@ -2,7 +2,7 @@ apiVersion: kubeadm.k8s.io/v1beta4
 kind: InitConfiguration
 bootstrapTokens:
   - token: "123456.1234567890123456"
-    ttl: "0s" # 토큰 만료 없음
+    ttl: "0s"
     usages:
       - signing
       - authentication
@@ -20,8 +20,3 @@ kubernetesVersion: v1.33.2
 networking:
   podSubnet: "10.244.0.0/16"
   serviceSubnet: "10.96.0.0/16"
-controllerManager: {}
-scheduler: {}
-etcd:
-  local:
-    dataDir: "/var/lib/etcd"

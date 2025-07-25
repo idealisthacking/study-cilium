@@ -2,12 +2,12 @@
 
 echo ">>>> K8S Node config Start <<<<"
 
-WORKER_NUM=$1
-WORKER_IP="192.168.10.10${WORKER_NUM}"
 
 echo "[TASK 1] K8S Controlplane Join"
-sed -i "s/NODE_IP/${WORKER_IP}/g" /tmp/kubeadm-join.yaml
-#kubeadm join --config="/tmp/kubeadm-join.yaml" > /dev/null 2>&1
-kubeadm join --config="/tmp/kubeadm-join.yaml"
+curl --silent -o /root/kubeadm-join-worker-config.yaml https://raw.githubusercontent.com/gasida/vagrant-lab/refs/heads/main/cilium-study/2w/kubeadm-join-worker-config.yaml
+NODEIP=$(ip -4 addr show eth1 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+sed -i "s/NODE_IP_PLACEHOLDER/${NODEIP}/g" /root/kubeadm-join-worker-config.yaml
+kubeadm join --config="/root/kubeadm-join-worker-config.yaml" > /dev/null 2>&1
+
 
 echo ">>>> K8S Node config End <<<<"
