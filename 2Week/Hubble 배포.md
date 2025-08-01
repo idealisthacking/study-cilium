@@ -149,3 +149,106 @@ hubble observe -f
 
 ```
 
+# Hubble Exporter 
+- Hubble Exporter는 나중에 사용할 수 있도록 **Hubble flows 로그를 파일**에 저장할 수 있는 cilium-agent의 기능입니다.
+- Hubble Exporter는 file rotation, size limits, filters, field masks를 지원합니다.
+
+## Hubble Exporter 설정
+```bash
+# 설정 : 아래 설정할 필요 없음
+helm upgrade cilium cilium/cilium --namespace kube-system --reuse-values \
+   --set hubble.enabled=true \
+   --set hubble.export.static.enabled=true \
+   --set hubble.export.static.filePath=/var/run/cilium/hubble/events.log
+
+kubectl -n kube-system rollout status ds/cilium
+
+
+# 확인
+kubectl get cm -n kube-system cilium-config -o json | grep hubble-export
+cilium config view | grep hubble-export
+hubble-export-allowlist                           
+hubble-export-denylist                            
+hubble-export-fieldmask                           
+hubble-export-file-max-backups   # number of rotated Hubble export files to keep. (default 5)
+hubble-export-file-max-size-mb   # size in MB at which to rotate the Hubble export file. (default 10)
+hubble-export-file-path          # file path of target log file. (default /var/run/cilium/hubble/events.log)
+
+# Verify that flow logs are stored in target files
+kubectl -n kube-system exec ds/cilium -- tail -f /var/run/cilium/hubble/events.log
+kubectl -n kube-system exec ds/cilium -- sh -c 'tail -f /var/run/cilium/hubble/events.log' | jq
+```
+
+
+## Filters & Field mask
+```bash
+# You can use hubble CLI to generated required filters (see Specifying Raw Flow Filters for more examples).
+# For example, to filter flows with verdict DENIED or ERROR, run:
+hubble observe --verdict DROPPED --verdict ERROR --print-raw-filters
+allowlist:
+- '{"verdict":["DROPPED","ERROR"]}'
+
+
+# To keep all information except pod labels:
+hubble-export-fieldmask: time source.identity source.namespace source.pod_name destination.identity destination.namespace destination.pod_name source_service destination_service l4 IP ethernet l7 Type node_name is_reply event_type verdict Summary
+
+# To keep only timestamp, verdict, ports, IP addresses, node name, pod name, and namespace:
+hubble-export-fieldmask: time source.namespace source.pod_name destination.namespace destination.pod_name l4 IP node_name is_reply verdict
+
+
+# 설정 방안 1 : Then paste the output to hubble-export-allowlist in cilium-config Config Map:
+kubectl -n kube-system patch cm cilium-config --patch-file=/dev/stdin <<-EOF
+data:
+  hubble-export-allowlist: '{"verdict":["DROPPED","ERROR"]}'
+  hubble-export-denylist: '{"source_pod":["kube-system/"]},{"destination_pod":["kube-system/"]}'
+EOF
+
+# 설정 방안 2 : helm 업그레이드
+helm upgrade cilium cilium/cilium --version 1.17.6 \
+   --set hubble.enabled=true \
+   --set hubble.export.static.enabled=true \
+   --set hubble.export.static.filePath=/var/run/cilium/hubble/events.log \
+   --set hubble.export.static.allowList[0]='{"verdict":["DROPPED","ERROR"]}'
+   --set hubble.export.static.denyList[0]='{"source_pod":["kube-system/"]}' \
+   --set hubble.export.static.denyList[1]='{"destination_pod":["kube-system/"]}' \
+   --set "hubble.export.static.fieldMask={time,source.namespace,source.pod_name,destination.namespace,destination.pod_name,l4,IP,node_name,is_reply,verdict,drop_reason_desc}"
+
+
+# 확인
+cilium config view | grep hubble-export
+hubble-export-allowlist                           {"verdict":["DENIED","ERROR"]}
+...
+
+kubectl -n kube-system exec ds/cilium -- tail -f /var/run/cilium/hubble/events.log
+{"flow":{"time":"2023-08-21T12:12:13.517394084Z","verdict":"DROPPED","IP":{"source":"fe80::64d8:8aff:fe72:fc14","destination":"ff02::2","ipVersion":"IPv6"},"l4":{"ICMPv6":{"type":133}},"source":{},"destination":{},"node_name":"kind-kind/kind-worker","drop_reason_desc":"INVALID_SOURCE_IP"},"node_name":"kind-kind/kind-worker","time":"2023-08-21T12:12:13.517394084Z"}
+{"flow":{"time":"2023-08-21T12:12:18.510175415Z","verdict":"DROPPED","IP":{"source":"10.244.1.60","destination":"10.244.1.5","ipVersion":"IPv4"},"l4":{"TCP":{"source_port":44916,"destination_port":80,"flags":{"SYN":true}}},"source":{"namespace":"default","pod_name":"xwing"},"destination":{"namespace":"default","pod_name":"deathstar-7848d6c4d5-th9v2"},"node_name":"kind-kind/kind-worker","drop_reason_desc":"POLICY_DENIED"},"node_name":"kind-kind/kind-worker","time":"2023-08-21T12:12:18.510175415Z"}
+```
+
+## Dynamic exporter configuration
+
+- Standard hubble exporter configuration은 only one set of filters 허용하며 구성을 변경하려면 only one set of filters이 필요합니다.
+- Dynamic flow logs를 사용하면 여러 필터를 동시에 구성하고 출력을 별도의 파일에 저장할 수 있습니다. 또한 변경된 구성을 적용하기 위해 실륨 포드 재시작이 필요하지 않습니다.
+- Dynamic Hubble Exporter는 Config Map 속성으로 활성화됩니다. 파일 경로 값을 hubble-flowlogs-config-path로 설정할 때까지 비활성화됩니다.
+```bash
+# 설정 
+helm upgrade cilium cilium/cilium --namespace kube-system --reuse-values \
+   --set hubble.enabled=true \
+   --set hubble.export.static.enabled=false \
+   --set hubble.export.dynamic.enabled=true
+
+kubectl -n kube-system rollout status ds/cilium
+
+
+# 포드를 재시작할 필요 없이 흐름 로그 설정을 변경할 수 있습니다(구성 맵 전파 지연으로 인해 변경 사항을 60초 이내에 반영해야 함):
+helm upgrade cilium cilium/cilium --version 1.17.6 \
+   --set hubble.enabled=true \
+   --set hubble.export.dynamic.enabled=true \
+   --set hubble.export.dynamic.config.content[0].name=system \
+   --set hubble.export.dynamic.config.content[0].filePath=/var/run/cilium/hubble/events-system.log \
+   --set hubble.export.dynamic.config.content[0].includeFilters[0].source_pod[0]='kube_system/' \
+   --set hubble.export.dynamic.config.content[0].includeFilters[1].destination_pod[0]='kube_system/'
+```
+
+# Configure TLS with Hubble 
+https://docs.cilium.io/en/stable/observability/hubble/configuration/tls/
+

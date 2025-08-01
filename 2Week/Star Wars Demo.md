@@ -183,7 +183,7 @@ kc describe cnp rule1
 ```
 ![[스크린샷 2025-07-26 오후 8.23.26.png]]
 
-[[패킷의 흐름]] 참고 
+[[Cilium Packet Flow]] 참고 
 
 ![[Pasted image 20250726012307.png]]
 Life of a Packet : L7 동작 처리는 cilium-envoy 데몬셋이 담당
