@@ -1,13 +1,14 @@
 IP Address Management : 네트워크 엔드포인트(컨테이너, 등)에 대한 IP 할당과 관리 - [Docs](https://docs.cilium.io/en/stable/network/concepts/ipam/)
 
-|**Feature**|**Kubernetes Host Scope**|**Cluster Scope (default)**|**Multi-Pool (Beta)**|**CRD-backed**|**AWS ENI…**|
-|---|---|---|---|---|---|
-|Tunnel routing|✅|✅|❌|❌|❌|
-|Direct routing|✅|✅|✅|✅|✅|
-|CIDR Configuration|Kubernetes|Cilium|Cilium|External|External (AWS)|
-|Multiple CIDRs per cluster|❌|✅|✅|N/A|N/A|
-|Multiple CIDRs per node|❌|❌|✅|N/A|N/A|
-|Dynamic CIDR/IP allocation|❌|❌|✅|✅|✅|
+| **Feature**                | **Kubernetes Host Scope** | **Cluster Scope (default)** | **Multi-Pool (Beta)** | **CRD-backed** | **AWS ENI…**   |
+| -------------------------- | ------------------------- | --------------------------- | --------------------- | -------------- | -------------- |
+| Tunnel routing             | ✅                         | ✅                           | ❌                     | ❌              | ❌              |
+| Direct routing             | ✅                         | ✅                           | ✅                     | ✅              | ✅              |
+| CIDR Configuration         | Kubernetes                | Cilium                      | Cilium                | External       | External (AWS) |
+| Multiple CIDRs per cluster | ❌                         | ✅                           | ✅                     | N/A            | N/A            |
+| Multiple CIDRs per node    | ❌                         | ❌                           | ✅                     | N/A            | N/A            |
+| Dynamic CIDR/IP allocation | ❌                         | ❌                           | ✅                     | ✅              | ✅              |
+|                            |                           |                             |                       |                |                |
 
 >[!note]
 기존 클러스터의 IPAM 모드를 변경하지 마세요. 
