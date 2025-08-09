@@ -174,3 +174,35 @@ hubble observe -f --protocol tcp --pod curl-pod
 ^475163
 
 현재는 노드가 총 3대이지만, 노드가 100대 이상되고, PodCIDR가 변경될때는 어떻게 해야 될까요?
+
+```bash
+kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.podCIDR}{"\n"}{end}'
+
+k8s-ctr	10.244.0.0/24
+k8s-w0	10.244.2.0/24
+k8s-w1	10.244.1.0/24
+
+
+
+sudo ip route add 10.244.0.0/24 via 192.168.10.100 dev eth1
+# k8s-w0로 가는 라우트
+sudo ip route add 10.244.2.0/24 via 192.168.20.100 dev eth2
+# k8s-w1로 가는 라우트
+sudo ip route add 10.244.1.0/24 via 192.168.10.101 dev eth1
+
+# 각 노드의 “InternalIP” 정보
+kubectl get node -owide
+NAME      STATUS   ROLES           AGE    VERSION   INTERNAL-IP      EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+k8s-ctr   Ready    control-plane   6d3h   v1.33.2   192.168.10.100   <none>        Ubuntu 24.04.2 LTS   6.8.0-53-generic   containerd://1.7.27
+k8s-w0    Ready    <none>          6d3h   v1.33.2   192.168.20.100   <none>        Ubuntu 24.04.2 LTS   6.8.0-53-generic   containerd://1.7.27
+k8s-w1    Ready    <none>          6d3h   v1.33.2   192.168.10.101   <none>        Ubuntu 24.04.2 LTS   6.8.0-53-generic   containerd://1.7.27
+
+
+
+
+sudo ip route del 10.244.0.0/24
+sudo ip route del 10.244.1.0/24
+sudo ip route del 10.244.2.0/24
+
+
+```
